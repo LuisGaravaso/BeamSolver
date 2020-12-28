@@ -22,17 +22,15 @@ class Sing:
     def __init__(self, mag, pos, expo):
         
         '''
-        A singularidade é uma função que funciona como um interruptor.
-        Tem forma <x - pos>**expo.
-        Vale '0' caso (x < pos) e funciona como um polinômio caso contrário.
-        Deve-se deixar claro que expoentes negativos não tem sentido físico e, 
-        portanto, retornam '0'.
+        The singularity is a function that works like a switch.
+        It is written as <x - pos>**expo.
+        It evaluates into '0' if (x < pos) or if (expo < 0).
         '''
         
-        self.mag = mag
-        self.pos = pos
-        self.expo = expo
-        self._apoio = False
+        self.mag = mag #Magnitude
+        self.pos = pos #Position of the Singularity
+        self.expo = expo #Exponent of the Singularity
+        self._is_supp = False #Support Flag used by the Supp() class
         
     def evaluate(self,x):
         
@@ -83,7 +81,7 @@ class Sing:
         mag_ = mag/n
         expo_ = expo + 1
         S = Sing(mag_, pos, expo_)
-        S._apoio = self._apoio
+        S._is_supp = self._is_supp
         return S
     
     def __add__(self, other):
@@ -97,7 +95,7 @@ class Sing:
         pos = self.pos
         expo = self.expo
         
-        if self._apoio:
+        if self._is_supp:
             if mag != 1:
                 mag = f"{mag:.4f}"+"⋅Ry"
             else:
@@ -115,6 +113,34 @@ class Sing:
             strmaker = f"{mag:.4f} ⋅ x^({expo})"
         
         return strmaker
+
+def Supp(pos):
+    
+    '''
+    Support Singularity.
+    This class flags Sing()._is_supp as True.
+    At first the Reaction on the Support is unknown, so it must be
+    evaluated by the solver.
+    
+    Parameters
+    ----------
+    pos : float
+        position of the Support Singularity
+
+    Returna
+    -------
+    Supp: Sing()
+        The Support singularity
+    '''
+    
+    mag = 1
+    pos = pos
+    expo = -1
+    
+    S = Sing(mag, pos, expo)
+    S._is_supp = True
+    
+    return S
         
 class Carregamento:
     
@@ -139,7 +165,7 @@ class Carregamento:
         Cargas = []
         for sing in self.Sings:
             value = sing.evaluate(x)
-            if sing._apoio:
+            if sing._is_supp:
                 Apoio.append(value)
             else:
                 Cargas.append(value)
@@ -187,16 +213,6 @@ class Carregamento:
         else:
             return strmaker[:-3]
     
-def Apoio(pos):
-        
-    mag = 1
-    pos = pos
-    expo = -1
-    
-    S = Sing(mag, pos, expo)
-    S._apoio = True
-    
-    return S
 
 class Viga:
     
@@ -226,7 +242,7 @@ class Viga:
             self.NCond = 4
         
         for sing in self.Q.Sings:
-            if (sing._apoio) and (self.NCond == 4):
+            if (sing._is_supp) and (self.NCond == 4):
                 pos = sing.pos
                 self.Conds[pos].append(("Flecha", 0))    
         
@@ -252,7 +268,7 @@ class Viga:
             self.Conds[pos].append(("Theta", 0))
             self.Conds[pos].append(("Flecha", 0))
         
-    def add_apoio(self, pos):
+    def add_supp(self, pos):
         add = self.__assertConds(flag = 2)
         pos = self.__assertpos(pos)
         
@@ -339,7 +355,7 @@ class Viga:
         #Atualizar Apoios
         i = 0
         for ind, sing in enumerate(self.Q.Sings):
-            if sing._apoio:
+            if sing._is_supp:
                 pos = sing.pos
                 mag = Apoios[i]
                 self.Q.Sings[ind] = Sing(mag, pos, -1)
